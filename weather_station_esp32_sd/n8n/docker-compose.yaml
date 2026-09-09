@@ -1,0 +1,74 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_storage:/root/.ollama
+    # เพิ่มส่วนนี้เพื่อให้ใช้ GPU ได้
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+  
+  postgres:
+    image: postgres:18
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: weather_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - OLLAMA_HOST=ollama:11434
+      - WEBHOOK_URL=https://neriah-discrepant-healthfully.ngrok-free.dev 
+    volumes:
+      - n8n_storage:/home/node/.n8n
+    depends_on:
+      - ollama
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok
+    restart: unless-stopped
+    environment:
+      - NGROK_AUTHTOKEN=38s2AZ8mBxtP30pxOTlAIJf1Bdv_5AYaSoTP2fUAKT4HqAjGP
+    command:
+      - http
+      - --domain=neriah-discrepant-healthfully.ngrok-free.dev
+      - n8n:5678
+    depends_on:
+      - n8n
+
+volumes:
+  n8n_storage:
+  ollama_storage:
+  postgres_data:
+  grafana_storage:
