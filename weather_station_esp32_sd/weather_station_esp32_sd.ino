@@ -24,6 +24,42 @@ WebServer server(80);
 /* ================= GITHUB OTA CONFIG ================= */
 const char* ota_bin_url = "https://raw.githubusercontent.com/Rainnie-Yizhan/otawsa/main/firmware.bin";
 
+/* ================= WEB LOG BUFFER (IP & DWEET ONLY) ================= */
+#define MAX_LOG_LINES 8
+String logLines[MAX_LOG_LINES];
+int logIndex = 0;
+
+void webLog(String msg) {
+  Serial.println(msg);
+  time_t nowTime;
+  time(&nowTime);
+  char timeBuf[12] = "";
+  if (nowTime > 946684800) {
+    struct tm ti;
+    localtime_r(&nowTime, &ti);
+    strftime(timeBuf, sizeof(timeBuf), "[%H:%M:%S] ", &ti);
+  }
+  logLines[logIndex] = String(timeBuf) + msg;
+  logIndex = (logIndex + 1) % MAX_LOG_LINES;
+}
+
+String getWebLogs() {
+  String out = "";
+  for (int i = 0; i < MAX_LOG_LINES; i++) {
+    int idx = (logIndex + i) % MAX_LOG_LINES;
+    if (logLines[idx].length() > 0) {
+      out += logLines[idx] + "\n";
+    }
+  }
+  return out;
+}
+
+/* ================= CLOUD SYNC CONFIG & RETRY ================= */
+const char* dweet_name = "wsa-esp32"; // ตรงตาม URL: https://dweet.cc/get/latest/dweet/for/wsa-esp32
+bool needCloudSync = false;
+unsigned long lastCloudSyncAttempt = 0;
+const unsigned long cloudSyncRetryInterval = 10000;
+
 /* ================= SD CARD ================= */
 #define SD_MISO  32
 #define SD_MOSI  13
@@ -40,9 +76,26 @@ String lastSDWriteTime = "Never";
 SPIClass mySPI(VSPI);
 
 /* ================= PIN CONFIG ================= */
-#define SPEED_PIN 27
-#define RAIN_PIN  26
-#define DIR_PIN   33
+#define SPEED_PIN    27
+#define RAIN_PIN     26
+#define DIR_PIN      33
+#define SOIL_PWR_PIN 15   // ขา 15 จ่ายไฟพัลส์ให้เซนเซอร์ความชื้นดิน
+
+/* ================= SOIL TIMING (NON-BLOCKING: 1 MIN ON / 5 MINS OFF) ================= */
+bool soilPowerState = true;                    // เริ่มต้นเปิดไฟทันทีหลังบูต
+unsigned long lastSoilStateChange = 0;
+const unsigned long soilOnDuration  = 60000;   // เปิดไฟ 1 นาที (60,000 ms)
+const unsigned long soilOffDuration = 300000;  // ดับไฟ 5 นาที (300,000 ms)
+unsigned long lastSoilSample = 0;
+
+/* ================= SOIL CALIBRATION CONSTANTS ================= */
+// Soil 1 (A1)
+const int SOIL1_DRY = 21380; // 0% ในอากาศ
+const int SOIL1_WET = 3960;  // 100% ในน้ำ
+
+// Soil 2 (A2)
+const int SOIL2_DRY = 8245;  // 0% ในอากาศ
+const int SOIL2_WET = 3640;  // 100% ในน้ำ
 
 /* ================= ADS1115 ================= */
 #define SOIL1_CH 1
@@ -115,8 +168,6 @@ void IRAM_ATTR windISR() {
 }
 
 void IRAM_ATTR rainISR() {
-  // [แก้ไขแล้ว] กรองสัญญาณรบกวน (Noise/Spike) จากสาย RJ11
-  // ถ้าขาไม่ได้เป็น LOW จริงๆ ให้เด้งออกทันที
   if (digitalRead(RAIN_PIN) == HIGH) {
     return;
   }
@@ -140,10 +191,63 @@ String getWindDirection(int adc) {
   return result;
 }
 
-/* ================= SOIL ================= */
-int soilPercent(int adc, int wet = 7600, int dry = 14000) {
-  adc = constrain(adc, wet, dry);
-  return map(adc, dry, wet, 0, 100);
+/* ================= SOIL PERCENT CALCULATION (FIXED & LINEAR) ================= */
+int soilPercent(int adc, int wet, int dry) {
+  // หากแรงดันตกเกินสภาวะเปียกน้ำ ให้คงที่ไว้ที่ 100%
+  if (adc <= wet) return 100;
+  // หากลอยสูงเกินกว่าค่าในอากาศ ให้คงที่ไว้ที่ 0%
+  if (adc >= dry) return 0;
+
+  // คำนวณแบบ Linear Float: ยิ่งใกล้ wet ยิ่งเข้าใกล้ 100%
+  float pct = ((float)(dry - adc) / (float)(dry - wet)) * 100.0f;
+  return constrain((int)round(pct), 0, 100);
+}
+
+/* ================= SOIL SENSOR MANAGEMENT (1 MIN ON / 5 MINS OFF) ================= */
+void manageSoilSensor() {
+  if (!hasADS) return;
+
+  unsigned long currentMillis = millis();
+
+  if (soilPowerState) {
+    // กำลังเปิดไฟ (ON)
+    if (currentMillis - lastSoilStateChange >= soilOnDuration) {
+      digitalWrite(SOIL_PWR_PIN, LOW); // ดับไฟทันทีเมื่อครบ 1 นาที
+      soilPowerState = false;
+      lastSoilStateChange = currentMillis;
+      Serial.println("[SOIL] Power OFF (Sleeping for 5 mins to prevent electrolysis & leakage)");
+    } else {
+      // รอให้จ่ายไฟไปแล้วอย่างน้อย 1,000 ms ให้แรงดันนิ่งสนิท แล้วค่อยอ่านค่าทุกๆ 2 วินาที
+      if ((currentMillis - lastSoilStateChange >= 1000) && (currentMillis - lastSoilSample >= 2000)) {
+        long soil1Sum = 0;
+        long soil2Sum = 0;
+        for (int i = 0; i < 10; i++) {
+          soil1Sum += ads.readADC_SingleEnded(SOIL1_CH);
+          soil2Sum += ads.readADC_SingleEnded(SOIL2_CH);
+          delay(5);
+        }
+        int soil1ADC = soil1Sum / 10;
+        int soil2ADC = soil2Sum / 10;
+
+        // คำนวณเปอร์เซ็นต์แยกตามค่า Calibrate จริงของแต่ละตัว
+        soil1Pct = soilPercent(soil1ADC, SOIL1_WET, SOIL1_DRY);
+        soil2Pct = soilPercent(soil2ADC, SOIL2_WET, SOIL2_DRY);
+        lastSoilSample = currentMillis;
+
+        Serial.printf("[SOIL] Raw1: %-5d -> %3d%% | Raw2: %-5d -> %3d%%\n", 
+                      soil1ADC, soil1Pct, soil2ADC, soil2Pct);
+      }
+    }
+  } else {
+    // กำลังดับไฟพักเครื่อง (OFF)
+    if (currentMillis - lastSoilStateChange >= soilOffDuration) {
+      digitalWrite(SOIL_PWR_PIN, HIGH); // จ่ายไฟเข้าเซนเซอร์เมื่อครบ 5 นาที
+      soilPowerState = true;
+      lastSoilStateChange = currentMillis;
+      lastSoilSample = currentMillis; // รอ 1 วินาทีแรกให้แรงดันนิ่งก่อน
+      Serial.println("[SOIL] Power ON (Active for 1 min)");
+    }
+  }
 }
 
 /* ================= ISO8601 TIMESTAMP ================= */
@@ -161,27 +265,7 @@ String getISOTimestamp() {
 /* ================= SENSOR UPDATE ================= */
 void updateSensors() {
   windDir = getWindDirection(windDirADC);
-  if (hasADS) {
-    long soil1Sum = 0;
-    long soil2Sum = 0;
-    
-    for(int i = 0; i < 10; i++) {
-      soil1Sum += ads.readADC_SingleEnded(SOIL1_CH);
-      soil2Sum += ads.readADC_SingleEnded(SOIL2_CH);
-      delay(5);
-    }
-    
-    int soil1ADC = soil1Sum / 10;
-    int soil2ADC = soil2Sum / 10;
-    
-    soil1Pct = soilPercent(soil1ADC, 4000, 14000);
-    soil2Pct = soilPercent(soil2ADC, 4000, 14000);
-  } else {
-    soil1Pct = 0;
-    soil2Pct = 0;
-  }
   
-  // [แก้ไขแล้ว] ปิด Interrupt แป๊บเดียวเพื่อดึงค่ามาคำนวณอย่างปลอดภัย
   noInterrupts();
   unsigned long currentTips = rainTipCount;
   interrupts();
@@ -216,8 +300,6 @@ void checkHourlyRainReset() {
     if (lastResetHour == -1) {
       lastResetHour = timeinfo.tm_hour;
     } else if (timeinfo.tm_hour != lastResetHour) {
-      
-      // [แก้ไขแล้ว] เอาเงื่อนไขการชะลอ 5 นาทีออก เพื่อรีเซ็ตตัดยอดรายชั่วโมงให้แม่นยำ
       noInterrupts();
       lastHourRainMM = rainMM;
       rainTipCount = 0;
@@ -389,6 +471,38 @@ void performGithubOTA() {
   }
 }
 
+/* ================= DWEET.CC CLOUD IP SYNC FUNCTION ================= */
+bool updateIPToCloud() {
+  if (WiFi.status() != WL_CONNECTED) {
+    webLog("[CLOUD] Aborted: WiFi not connected");
+    return false;
+  }
+
+  webLog("[CLOUD] Syncing IP to dweet.cc...");
+  WiFiClientSecure client;
+  client.setInsecure();
+  client.setTimeout(8);
+
+  HTTPClient http;
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  
+  String url = "https://dweet.cc/dweet/for/" + String(dweet_name) + "?ip=" + WiFi.localIP().toString();
+  http.begin(client, url);
+  http.setUserAgent("Mozilla/5.0 (ESP32)");
+  int httpCode = http.GET();
+
+  bool success = false;
+  if (httpCode >= 200 && httpCode < 300) {
+    webLog(String("[CLOUD] SUCCESS: ") + WiFi.localIP().toString() + " (Status: " + httpCode + ")");
+    success = true;
+  } else {
+    webLog(String("[CLOUD] FAILED: Code ") + httpCode + " (" + http.errorToString(httpCode) + ")");
+    success = false;
+  }
+  http.end();
+  return success;
+}
+
 /* ================= WEB PAGE ================= */
 String webpage() {
 return R"====(
@@ -413,6 +527,9 @@ h2{margin-bottom:18px;font-weight:700;letter-spacing:1.5px;color:#ffffff;text-tr
 .btn:hover{background:#d35400;}
 .btn-ota{background:#9b59b6;}
 .btn-ota:hover{background:#8e44ad;}
+.btn-sync{background:#2980b9;}
+.btn-sync:hover{background:#1f618d;}
+.terminal{background:#000000;color:#00ff66;font-family:'Courier New',Courier,monospace;font-size:12px;padding:12px;border-radius:6px;height:120px;overflow-y:auto;white-space:pre-wrap;border:1px solid #333333;margin-top:12px;}
 .time{font-size:12px;color:#777777;margin-top:14px;text-align:center;}
 </style>
 </head>
@@ -446,6 +563,12 @@ h2{margin-bottom:18px;font-weight:700;letter-spacing:1.5px;color:#ffffff;text-tr
     <div style="margin-top:14px;border-top:1px solid #222222;padding-top:12px;">
       <button class="btn" onclick="resetRain()">Reset Rain</button>
       <button class="btn btn-ota" onclick="triggerOTA()">Check GitHub OTA</button>
+      <button class="btn btn-sync" onclick="triggerSync()">Sync IP to Cloud</button>
+    </div>
+
+    <div style="margin-top:16px;">
+      <div class="panel-title" style="margin-bottom:6px;">IP & Cloud Sync Logs</div>
+      <div id="term" class="terminal">Awaiting sync events...</div>
     </div>
   </div>
 
@@ -464,6 +587,12 @@ function triggerOTA(){
   if(confirm("Do you want to check and install firmware updates from GitHub?")){
     fetch('/checkota').then(r=>r.text()).then(msg=>alert(msg));
   }
+}
+
+function triggerSync(){
+  fetch('/updateip').then(r=>r.text()).then(msg=>{
+    console.log(msg);
+  });
 }
 
 setInterval(function(){
@@ -490,6 +619,14 @@ setInterval(function(){
   });
 }, 500);
 
+setInterval(function(){
+  fetch("/logs").then(r=>r.text()).then(txt=>{
+    let el = document.getElementById("term");
+    el.innerText = txt;
+    el.scrollTop = el.scrollHeight;
+  });
+}, 2500);
+
 function setTag(id, ok){
   let el = document.getElementById(id);
   el.className = "tag " + (ok ? "ok" : "fail");
@@ -507,11 +644,16 @@ void setup() {
 
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n\n=== ESP32 Weather Station ===");
-
+  Serial.println("\n\n=== ESP32 Weather Station Started ===");
   esp_task_wdt_init(wdtTimeoutSec, true);
   esp_task_wdt_add(NULL);
 
+  // ตั้งค่าขาควบคุมไฟพัลส์เซนเซอร์ดิน (GPIO 15)
+  pinMode(SOIL_PWR_PIN, OUTPUT);
+  digitalWrite(SOIL_PWR_PIN, HIGH); // เริ่มเปิดไฟ 1 นาทีแรกหลังบูต
+  soilPowerState = true;
+  lastSoilStateChange = millis();
+  
   Wire.begin(21, 22);
   Wire.setClock(100000);
   Wire.setTimeOut(150);
@@ -543,8 +685,10 @@ void setup() {
         f.close();
       }
     }
+    Serial.println("[SD] Initialized successfully");
   } else {
     hasSD = false;
+    Serial.println("[SD] Failed to initialize");
   }
 
   pinMode(SPEED_PIN, INPUT_PULLUP);
@@ -563,11 +707,15 @@ void setup() {
   Serial.println();
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("[OK] WiFi | IP: "); Serial.println(WiFi.localIP());
+    webLog(String("[WiFi] Connected! IP: ") + WiFi.localIP().toString());
     WiFi.setSleep(WIFI_PS_NONE); 
   }
 
   server.on("/", []() { server.send(200, "text/html", webpage()); });
+
+  server.on("/logs", []() {
+    server.send(200, "text/plain", getWebLogs());
+  });
 
   server.on("/settime", []() {
     if (server.hasArg("ts")) {
@@ -620,13 +768,27 @@ void setup() {
   server.on("/pending", handlePendingStream);
   server.on("/checkota", performGithubOTA);
 
+  server.on("/updateip", []() {
+    needCloudSync = true;
+    lastCloudSyncAttempt = 0;
+    server.send(200, "text/plain", "Triggered IP sync to Cloud queue!");
+  });
+
   server.begin();
   Serial.println("[OK] Web Server Ready");
+
+  if (WiFi.status() == WL_CONNECTED) {
+    needCloudSync = true;
+    lastCloudSyncAttempt = millis() - (cloudSyncRetryInterval - 2000);
+  }
 }
 
 /* ================= LOOP ================= */
 void loop() {
   unsigned long now = millis();
+
+  // รันระบบเปิดไฟ 1 นาที / ดับไฟ 5 นาที ให้เซนเซอร์ความชื้นดิน (Non-blocking)
+  manageSoilSensor();
 
   if (now > 172800000UL) {
     Serial.println("[SYSTEM] 48h Auto-Restart triggered");
@@ -666,16 +828,6 @@ void loop() {
     lastTimeCheck = now;
   }
 
-  bool isWifiOnline = (WiFi.status() == WL_CONNECTED);
-  if (!isWifiOnline && wasWifiConnected) wifiOffTime = millis();
-  wasWifiConnected = isWifiOnline;
-
-  if (!isWifiOnline && (now - lastReconnectAttempt >= reconnectInterval)) {
-    Serial.println("[WiFi] Offline, reconnecting...");
-    WiFi.disconnect(); WiFi.reconnect();
-    lastReconnectAttempt = now;
-  }
-
   if (now - lastSDWrite >= sdInterval) {
     writeToSD();
     lastSDWrite = now;
@@ -683,4 +835,35 @@ void loop() {
 
   server.handleClient();
   esp_task_wdt_reset();
+
+  bool isWifiOnline = (WiFi.status() == WL_CONNECTED);
+  if (!isWifiOnline && wasWifiConnected) {
+    wifiOffTime = millis();
+    webLog("[WiFi] Lost connection");
+  }
+
+  if (!isWifiOnline && (now - lastReconnectAttempt >= reconnectInterval)) {
+    Serial.println("[WiFi] Attempting reconnect...");
+    WiFi.disconnect(); 
+    WiFi.reconnect();
+    lastReconnectAttempt = now;
+  }
+
+  if (isWifiOnline && !wasWifiConnected) {
+    webLog(String("[WiFi] Reconnected! New IP: ") + WiFi.localIP().toString());
+    needCloudSync = true;
+    lastCloudSyncAttempt = 0;
+  }
+
+  wasWifiConnected = isWifiOnline;
+
+  /* ================= AUTO-RETRY CLOUD IP SYNC ================= */
+  if (needCloudSync && isWifiOnline && (now - lastCloudSyncAttempt >= cloudSyncRetryInterval)) {
+    lastCloudSyncAttempt = now;
+    if (updateIPToCloud()) {
+      needCloudSync = false;
+    } else {
+      webLog("[CLOUD] Failed. Retrying in 10s...");
+    }
+  }
 }
