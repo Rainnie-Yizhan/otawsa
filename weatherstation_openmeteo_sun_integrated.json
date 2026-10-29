@@ -1,0 +1,891 @@
+{
+  "name": "weatherstation_openmeteo_sun_integrated",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -192,
+        48
+      ],
+      "id": "2f961680-1569-4dd8-a69f-96782059d6f5",
+      "name": "Telegram Trigger",
+      "webhookId": "c8241742-1a49-4364-b489-a0c06024b062",
+      "credentials": {
+        "telegramApi": {
+          "id": "Hir50bCj0KRlGyKV",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "148c41d1-1910-435e-945b-4e1aecd96af6",
+              "name": "message.chat.id",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "number"
+            },
+            {
+              "id": "85fdbc11-1136-4e8b-ac7f-1467611dc0bf",
+              "name": "message.text",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        48
+      ],
+      "id": "a127c3ea-e384-4dec-98d0-56b82b8ccae2",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "weather_logs",
+          "mode": "list",
+          "cachedResultName": "weather_logs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "humid": "={{ $json.humid }}",
+            "rain": "={{ $json.rain }}",
+            "wind_speed": "={{ $json.wind_speed }}",
+            "soil1": "={{ $json.soil1 }}",
+            "soil2": "={{ $json.soil2 }}",
+            "light": "={{ $json.light }}",
+            "wind_dir": "={{ $json.wind_dir }}",
+            "pres": "={{ $json.pres }}",
+            "temp": "={{ $json.temp }}",
+            "measured_at": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "measured_at",
+              "displayName": "measured_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "temp",
+              "displayName": "temp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "humid",
+              "displayName": "humid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "rain",
+              "displayName": "rain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "wind_speed",
+              "displayName": "wind_speed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "wind_dir",
+              "displayName": "wind_dir",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "soil1",
+              "displayName": "soil1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "soil2",
+              "displayName": "soil2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "light",
+              "displayName": "light",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pres",
+              "displayName": "pres",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -592,
+        16
+      ],
+      "id": "127aca39-8db6-4f68-8013-3008aec6f403",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "6KhMpbqXS5XUElmY",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1232,
+        16
+      ],
+      "id": "88dc4d17-1512-47e2-bccc-9a49461b984a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "=http://{{ $('GetIP').item.json.with[0].content.ip }}/pending",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -768,
+        16
+      ],
+      "id": "031a6716-9ddb-497d-b6e4-b6c69beaeff5",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "==เวลาปัจจุบันคือ: {{ $now.setZone('Asia/Bangkok').toFormat('cccc YYYY-MM-DD HH:mm:ss') }} น. (Asia/Bangkok)\nคุณคือ \"WSA\" ผู้ช่วยสภาพอากาศและเกษตรอัจฉริยะ ประจำสถานีตรวจวัดและพยากรณ์อากาศเชียงใหม่\n\n[หน้าที่หลัก]\nตอบคำถามสภาพอากาศและการเกษตรโดยใช้ข้อมูลจาก Tools เท่านั้น ห้ามคาดเดา คิดคำนวณสถิติเอง หรือสร้างตัวเลขขึ้นมาเองเด็ดขาด\n\n[กฎการใช้ภาษา]\n- ตอบด้วยภาษาเดียวกับที่ผู้ใช้ถาม (ถามไทยตอบไทย ถามอังกฤษตอบอังกฤษ)\n- ให้ข้อมูลสละสลวย กระชับ เข้าใจง่าย ห้ามแสดงชื่อ Tool, ชื่อตาราง/คอลัมน์ SQL หรือโครงสร้าง JSON ออกมาในข้อความ\n\n[การเลือกใช้งาน TOOLS]\n1. สภาพอากาศปัจจุบัน: เรียกใช้ get_current_weather เพื่ออ่านข้อมูลจริงจากสถานีตรวจวัด\n2. สภาพอากาศย้อนหลัง/สรุปสถิติอดีต: เรียกใช้ get_historical_weather โดยคำนวณช่วงเวลา start_time และ end_time ให้ชัดเจน (เช่น เมื่อวาน, 2 ชั่วโมงที่แล้ว)\n3. สภาพอากาศพยากรณ์/อนาคต: เรียกใช้ get_forecast_weather เสมอ (เช่น พรุ่งนี้, คืนนี้, บ่ายพรุ่งนี้, 3 วันข้างหน้า) ห้ามตอบข้อมูลพยากรณ์โดยไม่เรียก Tool นี้เด็ดขาด\n4. ข้อมูลดวงอาทิตย์ (พระอาทิตย์ขึ้น-ตก): \n   - คำถามเกี่ยวกับพระอาทิตย์ขึ้น/ตก ให้เรียก get_sun_information\n   - วันนี้ = วันที่ปัจจุบันใน Asia/Bangkok\n   - พรุ่งนี้ = วันถัดไป\n   - ถ้าถามหลายวัน (เช่น 3 วันข้างหน้า) ให้เรียก get_sun_information ของแต่ละวันที่เกี่ยวข้อง\n   - ห้ามคำนวณ sunrise/sunset เอง ห้ามเดาเวลาเด็ดขาด ให้ใช้ข้อมูลที่ได้จากฐานข้อมูลเท่านั้น\n5. การวิเคราะห์เกษตร (เช่น วันนี้ควรรดน้ำไหม): ให้เรียกหลาย Tool ร่วมกัน เช่น ตรวจสอบความชื้นดินและอากาศจาก get_current_weather ควบคู่กับการตรวจโอกาสเกิดฝนในอนาคตจาก get_forecast_weather แล้วสรุปคำแนะนำ\n\n[ข้อกำหนดเวลา YYYY-MM-DD HH:mm:ss+07]\n- เมื่อวาน: start_time = 00:00:00+07, end_time = 23:59:59+07 ของเมื่อวาน\n- พรุ่งนี้: start_time = 00:00:00+07, end_time = 23:59:59+07 ของวันพรุ่งนี้\n- 3 วันข้างหน้า: start_time = วันพรุ่งนี้ 00:00:00+07, end_time = วันที่ 3 นับจากนี้ 23:59:59+07\n\n[กฎสำคัญสำหรับการเรียกใช้ TOOL]\n- ห้ามพิมพ์ข้อความบรรยายการทำงาน เช่น \"Calling get_...\", \"กำลังค้นหาข้อมูล\", หรือ JSON ของ Tool ออกมาในข้อความตอบกลับเด็ดขาด\n- ให้เรียกใช้ Tool เงียบๆ หลังบ้าน แล้วรอจนกว่าจะได้ผลลัพธ์จาก Tool จากนั้นจึงนำผลลัพธ์มาเรียบเรียงเป็นคำตอบภาษาธรรมชาติให้ผู้ใช้ในข้อความเดียว\n\n[กรณีไม่มีข้อมูล]\nหาก Tool แจ้งว่าไม่มีข้อมูล ให้ตอบผู้ใช้ตามตรงว่าไม่มีข้อมูลในวันดังกล่าว ห้ามคำนวณหรือเดาเวลาแทน",
+          "maxIterations": 5,
+          "returnIntermediateSteps": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        256,
+        48
+      ],
+      "id": "1b96dd18-5e1f-4627-8582-0e1355ce8b9e",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node['Telegram Trigger'].json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        64
+      ],
+      "id": "bf54e993-b6df-426a-b781-3969f55fcdf0",
+      "name": "Send a text message1",
+      "webhookId": "daa7d48e-f86d-4ad0-8f51-c58388fd6c37",
+      "credentials": {
+        "telegramApi": {
+          "id": "Hir50bCj0KRlGyKV",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=http://{{ $json.with[0].content.ip }}/settime?ts={{ Math.floor(Date.now() / 1000) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -944,
+        16
+      ],
+      "id": "4a98e694-709c-401c-bd2c-7b88601bb36b",
+      "name": "Sync Time"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        1104,
+        112
+      ],
+      "id": "4de8415d-10ca-4889-867f-a37c86c9fe71",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "6KhMpbqXS5XUElmY",
+          "name": "Postgres account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        256,
+        256
+      ],
+      "id": "9ebccbaa-03ac-4cd4-87ff-c9291a4c2119",
+      "name": "Postgres Chat Memory1",
+      "credentials": {
+        "postgres": {
+          "id": "6KhMpbqXS5XUElmY",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        16
+      ],
+      "id": "f638030b-ed8c-42f3-9160-8cd0232d1990",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        992,
+        432
+      ],
+      "id": "9a29f77e-ab7f-4d6f-8f5d-245a3d0007b1",
+      "name": "Simple Memory1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "url": "http://dweet.cc/get/latest/dweet/for/wsa-esp32",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1088,
+        16
+      ],
+      "id": "c4c84e45-f345-4f18-992d-ac062e0ff991",
+      "name": "GetIP"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        48,
+        240
+      ],
+      "id": "67752316-b68e-4502-89db-ac0323df39c5",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "McxahHaxbDmlbAr4",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Call this tool to get the EXACT CURRENT weather sensor readings from the local station right now. Use this for questions like 'ตอนนี้อากาศเป็นอย่างไร', 'ตอนนี้อุณหภูมิเท่าไหร่', 'ดินตอนนี้ชื้นไหม'.",
+        "operation": "executeQuery",
+        "query": "SELECT \n  to_char(measured_at AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM-DD HH24:MI:SS') AS exact_thai_time,\n  temp, humid, rain, wind_speed, wind_dir, soil1, soil2, light, pres\nFROM weather_logs\nORDER BY measured_at DESC\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        384,
+        272
+      ],
+      "id": "5382d0ca-437e-415e-b02d-2bba2891b724",
+      "name": "get_current_weather",
+      "credentials": {
+        "postgres": {
+          "id": "6KhMpbqXS5XUElmY",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Call this tool to get historical weather data or summaries (averages, max, min, total rain) from the local station for a SPECIFIC PAST TIME OR DAY (e.g., 'เมื่อวาน', 'สัปดาห์ที่แล้ว', 'เมื่อเช้า'). Input arguments must be valid ISO8601 timestamps (YYYY-MM-DD HH:mm:ss+07).",
+        "operation": "executeQuery",
+        "query": "WITH bounds AS (\n  SELECT\n    COALESCE(\n      NULLIF(NULLIF('{{ $fromAI('start_time', 'เวลาเริ่มต้น (YYYY-MM-DD HH:mm:ss+07)', 'string').replace(/[\"']/g, '') }}', 'undefined'), ''),\n      (NOW() - INTERVAL '1 day')::text\n    )::timestamptz AS range_start,\n    COALESCE(\n      NULLIF(NULLIF('{{ $fromAI('end_time', 'เวลาสิ้นสุด (YYYY-MM-DD HH:mm:ss+07)', 'string').replace(/[\"']/g, '') }}', 'undefined'), ''),\n      NOW()::text\n    )::timestamptz AS range_end\n)\nSELECT\n  COUNT(*) AS row_count,\n  to_char((SELECT range_start FROM bounds) AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM-DD HH24:MI') AS query_start,\n  to_char((SELECT range_end FROM bounds) AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM-DD HH24:MI') AS query_end,\n  ROUND(AVG(temp)::numeric, 2) AS avg_temp,\n  ROUND(MAX(temp)::numeric, 2) AS max_temp,\n  ROUND(MIN(temp)::numeric, 2) AS min_temp,\n  ROUND(AVG(humid)::numeric, 2) AS avg_humid,\n  ROUND(COALESCE(SUM(rain), 0)::numeric, 2) AS total_rain_accumulated,\n  ROUND(AVG(wind_speed)::numeric, 2) AS avg_wind_speed\nFROM weather_logs, bounds\nWHERE measured_at BETWEEN bounds.range_start AND bounds.range_end;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        496,
+        288
+      ],
+      "id": "6a3fdaec-fda8-40f9-9416-1e5c2288da79",
+      "name": "get_historical_weather",
+      "credentials": {
+        "postgres": {
+          "id": "6KhMpbqXS5XUElmY",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Call this tool to get FUTURE weather FORECASTS (temperature, rain probability, condition) from the TMD NWP API. Use this for questions like 'พรุ่งนี้ฝนตกไหม', '3 วันข้างหน้าอากาศเป็นอย่างไร'. Input arguments must be valid ISO8601 timestamps.",
+        "operation": "executeQuery",
+        "query": "WITH bounds AS (\n  SELECT\n    COALESCE(\n      NULLIF(NULLIF('{{ $fromAI('start_time', 'เวลาเริ่มต้น (YYYY-MM-DD HH:mm:ss+07)', 'string').replace(/[\"']/g, '') }}', 'undefined'), ''),\n      NOW()::text\n    )::timestamptz AS range_start,\n    COALESCE(\n      NULLIF(NULLIF('{{ $fromAI('end_time', 'เวลาสิ้นสุด (YYYY-MM-DD HH:mm:ss+07)', 'string').replace(/[\"']/g, '') }}', 'undefined'), ''),\n      (NOW() + INTERVAL '1 day')::text\n    )::timestamptz AS range_end\n)\nSELECT \n  to_char(forecast_time AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM-DD HH24:MI:SS') AS forecast_time_th,\n  temperature, humidity, rain_probability, rainfall, weather_condition\nFROM weather_forecast, bounds\nWHERE forecast_time BETWEEN bounds.range_start AND bounds.range_end\nORDER BY forecast_time ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        624,
+        272
+      ],
+      "id": "9ec261da-85df-481d-aa3d-cd364b148be5",
+      "name": "get_forecast_weather",
+      "credentials": {
+        "postgres": {
+          "id": "6KhMpbqXS5XUElmY",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Call this tool to get astronomical sunrise and sunset times for a specific date in Chiang Mai. Input argument must be a date string (YYYY-MM-DD).",
+        "operation": "executeQuery",
+        "query": "SELECT \n  to_char(date, 'YYYY-MM-DD') AS date,\n  to_char(sunrise AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS sunrise_time,\n  to_char(sunset AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS sunset_time,\n  source\nFROM weather_sun\nWHERE location = 'Chiang Mai'\n  AND date = COALESCE(\n    NULLIF(NULLIF('{{ $fromAI('target_date', 'วันที่ต้องการค้นหา (YYYY-MM-DD เช่น 2026-09-26)', 'string').replace(/[\"']/g, '') }}', 'undefined'), ''),\n    to_char(NOW() AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM-DD')\n  )::date\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        752,
+        256
+      ],
+      "id": "2c8e4181-f2bd-4598-be3f-ec96036f59a9",
+      "name": "get_sun_information",
+      "credentials": {
+        "postgres": {
+          "id": "6KhMpbqXS5XUElmY",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\nif (!response || !response.hourly || !Array.isArray(response.hourly.time)) {\n  throw new Error('Open-Meteo API response does not contain hourly data.');\n}\n\nconst hourly = response.hourly;\nconst daily = response.daily || {};\nconst hourlyLen = hourly.time.length;\n\n// สร้าง Map ของ Sun Data\nconst sunMap = {};\nif (daily.time && Array.isArray(daily.time)) {\n  for (let i = 0; i < daily.time.length; i++) {\n    const dStr = daily.time[i];\n    sunMap[dStr] = {\n      sunrise: daily.sunrise && daily.sunrise[i] ? `${daily.sunrise[i]}:00+07:00` : null,\n      sunset: daily.sunset && daily.sunset[i] ? `${daily.sunset[i]}:00+07:00` : null\n    };\n  }\n}\n\nconst getConditionText = (code) => {\n  switch (Number(code)) {\n    case 0: return 'ท้องฟ้าแจ่มใส';\n    case 1: return 'มีเมฆเล็กน้อย';\n    case 2: return 'มีเมฆบางส่วน';\n    case 3: return 'เมฆมาก';\n    case 45:\n    case 48: return 'มีหมอก';\n    case 51:\n    case 53:\n    case 55: return 'ฝนปรอย';\n    case 61:\n    case 63:\n    case 65: return 'ฝนตก';\n    case 80:\n    case 81:\n    case 82: return 'ฝนซู่';\n    case 95:\n    case 96:\n    case 99: return 'พายุฝนฟ้าคะนอง';\n    default: return `สภาพอากาศรหัส ${code}`;\n  }\n};\n\nconst results = [];\nfor (let i = 0; i < hourlyLen; i++) {\n  const rawTime = hourly.time[i];\n  if (!rawTime) continue;\n  \n  const formattedTime = rawTime.includes('+') ? rawTime : `${rawTime}:00+07:00`;\n  const dateKey = rawTime.split('T')[0];\n  const sunInfo = sunMap[dateKey] || { sunrise: null, sunset: null };\n\n  results.push({\n    json: {\n      location: 'Chiang Mai',\n      latitude: 18.7883,\n      longitude: 98.9853,\n      date: dateKey,\n      forecast_time: formattedTime,\n      temperature: hourly.temperature_2m && hourly.temperature_2m[i] !== null ? Number(hourly.temperature_2m[i]) : null,\n      humidity: hourly.relative_humidity_2m && hourly.relative_humidity_2m[i] !== null ? Number(hourly.relative_humidity_2m[i]) : null,\n      rainfall: hourly.precipitation && hourly.precipitation[i] !== null ? Number(hourly.precipitation[i]) : 0,\n      rain_probability: hourly.precipitation_probability && hourly.precipitation_probability[i] !== null ? Number(hourly.precipitation_probability[i]) : 0,\n      wind_speed: hourly.wind_speed_10m && hourly.wind_speed_10m[i] !== null ? Number(hourly.wind_speed_10m[i]) : null,\n      wind_direction: hourly.wind_direction_10m && hourly.wind_direction_10m[i] !== null ? String(hourly.wind_direction_10m[i]) : null,\n      pressure: hourly.surface_pressure && hourly.surface_pressure[i] !== null ? Number(hourly.surface_pressure[i]) : null,\n      cloud_cover: hourly.cloud_cover && hourly.cloud_cover[i] !== null ? Number(hourly.cloud_cover[i]) : null,\n      weather_condition: getConditionText(hourly.weather_code ? hourly.weather_code[i] : null),\n      sunrise: sunInfo.sunrise,\n      sunset: sunInfo.sunset,\n      source: 'Open-Meteo'\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        544
+      ],
+      "id": "be1c4014-d005-470a-bac5-c989316b0665",
+      "name": "Format Open-Meteo Forecast Data"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1200,
+        544
+      ],
+      "id": "c0969638-1901-4e74-a5a4-4b919f18e63f",
+      "name": "Schedule Trigger (TMD 3h)1"
+    },
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "latitude",
+              "value": "18.7883"
+            },
+            {
+              "name": "longitude",
+              "value": "98.9853"
+            },
+            {
+              "name": "hourly",
+              "value": "temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,cloud_cover"
+            },
+            {
+              "name": "forecast_days",
+              "value": "7"
+            },
+            {
+              "name": "timezone",
+              "value": "Asia/Bangkok"
+            },
+            {
+              "name": "daily",
+              "value": "sunrise,sunset"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -976,
+        544
+      ],
+      "id": "7a90e358-f037-4b20-98b7-d6564bfe59a3",
+      "name": "Fetch Open-Meteo Forecast1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO weather_forecast (\n  location, latitude, longitude, forecast_time, fetched_at,\n  temperature, humidity, rainfall, rain_probability,\n  wind_speed, wind_direction, pressure, cloud_cover,\n  weather_condition, source\n)\nVALUES (\n  '{{ $json.location }}',\n  {{ $json.latitude }},\n  {{ $json.longitude }},\n  '{{ $json.forecast_time }}'::timestamptz,\n  NOW(),\n  {{ $json.temperature !== null ? $json.temperature : 'NULL' }},\n  {{ $json.humidity !== null ? $json.humidity : 'NULL' }},\n  {{ $json.rainfall !== null ? $json.rainfall : 0 }},\n  {{ $json.rain_probability !== null ? $json.rain_probability : 0 }},\n  {{ $json.wind_speed !== null ? $json.wind_speed : 'NULL' }},\n  '{{ $json.wind_direction || 'N' }}',\n  {{ $json.pressure !== null ? $json.pressure : 'NULL' }},\n  {{ $json.cloud_cover !== null ? $json.cloud_cover : 'NULL' }},\n  '{{ $json.weather_condition }}',\n  '{{ $json.source }}'\n)\nON CONFLICT (forecast_time, location)\nDO UPDATE SET\n  fetched_at = NOW(),\n  temperature = EXCLUDED.temperature,\n  humidity = EXCLUDED.humidity,\n  rainfall = EXCLUDED.rainfall,\n  rain_probability = EXCLUDED.rain_probability,\n  wind_speed = EXCLUDED.wind_speed,\n  wind_direction = EXCLUDED.wind_direction,\n  pressure = EXCLUDED.pressure,\n  cloud_cover = EXCLUDED.cloud_cover,\n  weather_condition = EXCLUDED.weather_condition,\n  source = EXCLUDED.source;\n\n-- ลบข้อมูลพยากรณ์ส่วนที่หลุดออกจาก 168 แถวล่าสุด (หรือข้อมูลที่หมดอายุแล้ว)\nDELETE FROM weather_forecast\nWHERE id NOT IN (\n  SELECT id FROM weather_forecast\n  WHERE location = 'Chiang Mai'\n  ORDER BY forecast_time DESC\n  LIMIT 168\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -528,
+        544
+      ],
+      "id": "f729e294-ebed-4762-bf80-4e1e4e822e4a",
+      "name": "Upsert to weather_forecast1",
+      "credentials": {
+        "postgres": {
+          "id": "6KhMpbqXS5XUElmY",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO weather_sun (\n  location, latitude, longitude, date, sunrise, sunset, fetched_at, source\n)\nVALUES (\n  '{{ $json.location }}',\n  {{ $json.latitude }},\n  {{ $json.longitude }},\n  '{{ $json.date }}'::date,\n  NULLIF('{{ $json.sunrise }}', '')::timestamptz,\n  NULLIF('{{ $json.sunset }}', '')::timestamptz,\n  NOW(),\n  '{{ $json.source }}'\n)\nON CONFLICT (location, date)\nDO UPDATE SET\n  fetched_at = NOW(),\n  sunrise = EXCLUDED.sunrise,\n  sunset = EXCLUDED.sunset,\n  source = EXCLUDED.source;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -528,
+        720
+      ],
+      "id": "be42b678-966a-4e6d-a681-a0b290ae8d95",
+      "name": "Upsert to weather_sun",
+      "credentials": {
+        "postgres": {
+          "id": "6KhMpbqXS5XUElmY",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {
+          "maxTokensToSample": 1333
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        144,
+        240
+      ],
+      "id": "6767b94e-ca1f-4bde-9b61-32ef76da499d",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "tEaZ6q6knKjLQSAi",
+          "name": "Groq account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "GetIP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Time": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        []
+      ]
+    },
+    "Postgres Chat Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        []
+      ]
+    },
+    "GetIP": {
+      "main": [
+        [
+          {
+            "node": "Sync Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "get_current_weather": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_historical_weather": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_forecast_weather": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_sun_information": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Open-Meteo Forecast Data": {
+      "main": [
+        [
+          {
+            "node": "Upsert to weather_forecast1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upsert to weather_sun",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger (TMD 3h)1": {
+      "main": [
+        [
+          {
+            "node": "Fetch Open-Meteo Forecast1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Open-Meteo Forecast1": {
+      "main": [
+        [
+          {
+            "node": "Format Open-Meteo Forecast Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert to weather_forecast1": {
+      "main": [
+        []
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Bangkok",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "8dc78e11-1de4-42f9-80fe-8f717e6bf816",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "84a7bd9b0955e0db79eae9ac25f8a5e217bb65bcceae8664b35f0d1e82bb2f6b"
+  },
+  "id": "uXPT-uyvSXGHQcBWnj1bu",
+  "tags": []
+}
